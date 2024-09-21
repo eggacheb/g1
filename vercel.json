@@ -1,7 +1,4 @@
 {
-  "buildCommand": "pip install -r requirements.txt",
-  "outputDirectory": ".",
-  "devCommand": "streamlit run app.py",
   "builds": [
     {
       "src": "app.py",
