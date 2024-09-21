@@ -26,103 +26,103 @@
 
     <div id="result"></div>
 
-    <script>
-        async function makeApiCall(apiKey, apiBase, model, messages, maxTokens) {
-            const response = await fetch(`${apiBase}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: messages,
-                    max_tokens: maxTokens,
-                    temperature: 0.2
-                })
-            });
+<script>
+    async function makeApiCall(apiKey, apiBase, model, messages, maxTokens) {
+        const response = await fetch(`${apiBase}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: messages,
+                max_tokens: maxTokens,
+                temperature: 0.2
+            })
+        });
 
-            if (!response.ok) {
-                throw new Error(`API call failed: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            return JSON.parse(data.choices[0].message.content);
+        if (!response.ok) {
+            throw new Error(`API call failed: ${response.statusText}`);
         }
 
-        async function generateResponse() {
-            const apiKey = document.getElementById('apiKey').value;
-            const apiBase = document.getElementById('apiBase').value;
-            const model = document.getElementById('model').value;
-            const query = document.getElementById('query').value;
-            const resultDiv = document.getElementById('result');
+        const data = await response.json();
+        return JSON.parse(data.choices[0].message.content);
+    }
 
-            if (!apiKey || !apiBase || !model || !query) {
-                resultDiv.innerHTML = "Please fill in all fields.";
-                return;
-            }
+    async function generateResponse() {
+        const apiKey = document.getElementById('apiKey').value;
+        const apiBase = document.getElementById('apiBase').value;
+        const model = document.getElementById('model').value;
+        const query = document.getElementById('query').value;
+        const resultDiv = document.getElementById('result');
 
-            resultDiv.innerHTML = "Generating response...";
+        if (!apiKey || !apiBase || !model || !query) {
+            resultDiv.innerHTML = "Please fill in all fields.";
+            return;
+        }
 
-            const systemMessage = `You are an expert AI assistant that explains your reasoning step by step. For each step, provide a title that describes what you're doing in that step, along with the content. Decide if you need another step or if you're ready to give the final answer. Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES.`;
+        resultDiv.innerHTML = "Generating response...";
 
-            const messages = [
-                { role: "system", content: systemMessage },
-                { role: "user", content: query },
-                { role: "assistant", content: "Thank you! I will now think step by step following my instructions, starting at the beginning after decomposing the problem." }
-            ];
+        const systemMessage = `You are an expert AI assistant that explains your reasoning step by step. For each step, provide a title that describes what you're doing in that step, along with the content. Decide if you need another step or if you're ready to give the final answer. Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES.`;
 
-            try {
-                let steps = [];
-                let stepCount = 1;
-                let totalThinkingTime = 0;
+        const messages = [
+            { role: "system", content: systemMessage },
+            { role: "user", content: query },
+            { role: "assistant", content: "Thank you! I will now think step by step following my instructions, starting at the beginning after decomposing the problem." }
+        ];
 
-                while (true) {
-                    const startTime = Date.now();
-                    const stepData = await makeApiCall(apiKey, apiBase, model, messages, 300);
-                    const endTime = Date.now();
-                    const thinkingTime = (endTime - startTime) / 1000;
-                    totalThinkingTime += thinkingTime;
+        try {
+            let steps = [];
+            let stepCount = 1;
+            let totalThinkingTime = 0;
 
-                    steps.push({ title: `Step ${stepCount}: ${stepData.title}`, content: stepData.content, time: thinkingTime });
-                    messages.push({ role: "assistant", content: JSON.stringify(stepData) });
-
-                    if (stepData.next_action === 'final_answer' || stepCount > 25) {
-                        break;
-                    }
-
-                    stepCount++;
-                }
-
-                messages.push({ role: "user", content: "Please provide the final answer based on your reasoning above." });
-
+            while (true) {
                 const startTime = Date.now();
-                const finalData = await makeApiCall(apiKey, apiBase, model, messages, 200);
+                const stepData = await makeApiCall(apiKey, apiBase, model, messages, 300);
                 const endTime = Date.now();
                 const thinkingTime = (endTime - startTime) / 1000;
                 totalThinkingTime += thinkingTime;
 
-                steps.push({ title: "Final Answer", content: finalData.content, time: thinkingTime });
+                steps.push({ title: `Step ${stepCount}: ${stepData.title}`, content: stepData.content, time: thinkingTime });
+                messages.push({ role: "assistant", content: JSON.stringify(stepData) });
 
-                let html = "";
-                steps.forEach(step => {
-                    if (step.title === "Final Answer") {
-                        html += `<h3>${step.title}</h3><p>${step.content}</p>`;
-                    } else {
-                        html += `<details>
-                                    <summary><strong>${step.title}</strong></summary>
-                                    <p>${step.content}</p>
-                                    <p><em>Thinking time for this step: ${step.time.toFixed(2)} seconds</em></p>
-                                  </details>`;
-                    }
-                });
-                html += `<p><strong>Total thinking time: ${totalThinkingTime.toFixed(2)} seconds</strong></p>`;
+                if (stepData.next_action === 'final_answer' || stepCount > 25) {
+                    break;
+                }
 
-                resultDiv.innerHTML = html;
-            } catch (error) {
-                resultDiv.innerHTML = `An error occurred: ${error.message}`;
+                stepCount++;
             }
+
+            messages.push({ role: "user", content: "Please provide the final answer based on your reasoning above." });
+
+            const startTime = Date.now();
+            const finalData = await makeApiCall(apiKey, apiBase, model, messages, 200);
+            const endTime = Date.now();
+            const thinkingTime = (endTime - startTime) / 1000;
+            totalThinkingTime += thinkingTime;
+
+            steps.push({ title: "Final Answer", content: finalData.content, time: thinkingTime });
+
+            let html = "";
+            steps.forEach(step => {
+                if (step.title === "Final Answer") {
+                    html += `<h3>${step.title}</h3><p>${step.content}</p>`;
+                } else {
+                    html += `<details>
+                                <summary><strong>${step.title}</strong></summary>
+                                <p>${step.content}</p>
+                                <p><em>Thinking time for this step: ${step.time.toFixed(2)} seconds</em></p>
+                              </details>`;
+                }
+            });
+            html += `<p><strong>Total thinking time: ${totalThinkingTime.toFixed(2)} seconds</strong></p>`;
+
+            resultDiv.innerHTML = html;
+        } catch (error) {
+            resultDiv.innerHTML = `An error occurred: ${error.message}`;
         }
-    </script>
+    }
+</script>
 </body>
 </html>
