@@ -114,4 +114,6 @@ def main():
                 time_container.markdown(f"**Total thinking time: {total_thinking_time:.2f} seconds**")
 
 if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 8501))
     main()
