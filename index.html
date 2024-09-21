@@ -47,7 +47,7 @@
         }
 
         const data = await response.json();
-        return JSON.parse(data.choices[0].message.content);
+        return data.choices[0].message.content;
     }
 
     async function generateResponse() {
@@ -79,13 +79,21 @@
 
             while (true) {
                 const startTime = Date.now();
-                const stepData = await makeApiCall(apiKey, apiBase, model, messages, 300);
+                const stepResponse = await makeApiCall(apiKey, apiBase, model, messages, 300);
                 const endTime = Date.now();
                 const thinkingTime = (endTime - startTime) / 1000;
                 totalThinkingTime += thinkingTime;
 
+                let stepData;
+                try {
+                    stepData = JSON.parse(stepResponse);
+                } catch (error) {
+                    console.error("Failed to parse step response:", stepResponse);
+                    stepData = { title: "Error", content: "Failed to parse response", next_action: "final_answer" };
+                }
+
                 steps.push({ title: `Step ${stepCount}: ${stepData.title}`, content: stepData.content, time: thinkingTime });
-                messages.push({ role: "assistant", content: JSON.stringify(stepData) });
+                messages.push({ role: "assistant", content: stepResponse });
 
                 if (stepData.next_action === 'final_answer' || stepCount > 25) {
                     break;
@@ -97,10 +105,18 @@
             messages.push({ role: "user", content: "Please provide the final answer based on your reasoning above." });
 
             const startTime = Date.now();
-            const finalData = await makeApiCall(apiKey, apiBase, model, messages, 200);
+            const finalResponse = await makeApiCall(apiKey, apiBase, model, messages, 200);
             const endTime = Date.now();
             const thinkingTime = (endTime - startTime) / 1000;
             totalThinkingTime += thinkingTime;
+
+            let finalData;
+            try {
+                finalData = JSON.parse(finalResponse);
+            } catch (error) {
+                console.error("Failed to parse final response:", finalResponse);
+                finalData = { content: "Failed to parse final response" };
+            }
 
             steps.push({ title: "Final Answer", content: finalData.content, time: thinkingTime });
 
